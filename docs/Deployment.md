@@ -6,18 +6,21 @@ The game is a single Node.js process in production — Express serves the built 
 
 ## Option A — Railway (Recommended, free tier)
 
+A `railway.toml` is already included in the repo — Railway will pick it up automatically.
+
+### Steps
+
 1. Go to [railway.app](https://railway.app) and sign in with GitHub
 2. Click **New Project → Deploy from GitHub repo** and select this repository
-3. Railway auto-detects Node.js and runs `npm start`
-4. Set the environment variable: `NODE_ENV=production`
-5. Before deploying, build the client once and commit `client/dist/`:
-   ```bash
-   npm run build
-   git add client/dist
-   git commit -m "Add production build"
-   git push
+3. In the Railway dashboard, go to your service → **Variables** and add:
    ```
-6. Railway gives you a public URL — share it with your players!
+   NODE_ENV=production
+   ```
+4. Railway builds and deploys automatically. It gives you a public `*.up.railway.app` URL — share it with your players!
+
+Every push to the branch redeploys automatically.
+
+> **What `railway.toml` does:** It tells Railway to run `npm install --prefix client && npm run build --prefix client` as the build step (Vite compiles the React app), then start the server with `npm start`. Root dependencies (Express, Socket.io) are installed by Railway automatically before the build command runs.
 
 ---
 
@@ -26,9 +29,9 @@ The game is a single Node.js process in production — Express serves the built 
 1. Go to [render.com](https://render.com) and connect your GitHub account
 2. Click **New → Web Service** and select this repo
 3. Set:
-   - **Build Command:** `npm run install:all && npm run build`
+   - **Build Command:** `npm install && npm install --prefix client && npm run build --prefix client`
    - **Start Command:** `npm start`
-   - **Environment:** `NODE_ENV=production`
+   - **Environment Variable:** `NODE_ENV=production`
 4. Deploy — Render gives you a `*.onrender.com` URL
 
 > **Note:** Render's free tier spins down after 15 minutes of inactivity. The first player to open the link may wait ~30 seconds for the server to wake up.
