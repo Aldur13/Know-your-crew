@@ -1,6 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import socket from './socket';
 import DEFAULT_QUESTIONS from './questions';
+import { isSoundEnabled, toggleSound } from './utils/audioSettings';
 import HomeScreen from './screens/HomeScreen';
 import HostSetupScreen from './screens/HostSetupScreen';
 import ProfileSetup from './screens/ProfileSetup';
@@ -28,6 +29,7 @@ export default function App() {
   const [disconnected, setDisconnected] = useState(false);
   const [questions, setQuestions] = useState(DEFAULT_QUESTIONS);
   const [totalRounds, setTotalRounds] = useState(20);
+  const [soundEnabled, setSoundEnabled] = useState(isSoundEnabled());
 
   useEffect(() => {
     socket.connect();
@@ -143,63 +145,126 @@ export default function App() {
     };
   }, []);
 
+  const handleSoundToggle = () => {
+    const newState = toggleSound();
+    setSoundEnabled(newState);
+  };
+
+  const SoundButton = () => (
+    <button
+      onClick={handleSoundToggle}
+      style={{
+        position: 'fixed',
+        top: '16px',
+        right: '16px',
+        width: '44px',
+        height: '44px',
+        borderRadius: '50%',
+        background: soundEnabled ? 'var(--primary)' : 'rgba(255,255,255,0.1)',
+        border: '1px solid rgba(255,255,255,0.2)',
+        color: 'var(--text)',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: '1.2rem',
+        transition: 'all 0.2s',
+        zIndex: 100
+      }}
+      title={soundEnabled ? 'Mute' : 'Unmute'}
+    >
+      {soundEnabled ? '♪' : '✕'}
+    </button>
+  );
+
   if (disconnected) return (
-    <div className="screen" style={{ textAlign: 'center' }}>
-      <div className="error-banner">
-        Connection lost. Attempting to reconnect...
-        <div style={{ fontSize: '0.85rem', marginTop: '8px', opacity: 0.8 }}>
-          If you don't reconnect in a few seconds, please refresh the page.
+    <div>
+      <SoundButton />
+      <div className="screen" style={{ textAlign: 'center' }}>
+        <div className="error-banner">
+          Connection lost. Attempting to reconnect...
+          <div style={{ fontSize: '0.85rem', marginTop: '8px', opacity: 0.8 }}>
+            If you don't reconnect in a few seconds, please refresh the page.
+          </div>
         </div>
       </div>
     </div>
   );
 
   if (screen === 'starting') return (
-    <div className="screen" style={{ textAlign: 'center' }}>
-      <p className="waiting-text">Game is starting...</p>
+    <div>
+      <SoundButton />
+      <div className="screen" style={{ textAlign: 'center' }}>
+        <p className="waiting-text">Game is starting...</p>
+      </div>
     </div>
   );
 
-  if (screen === 'home') return <HomeScreen error={error} onClearError={() => setError(null)} />;
-  if (screen === 'host-setup') return (
-    <HostSetupScreen
-      roomCode={roomCode}
-      onDone={(q) => { setQuestions(q); setScreen('profile'); }}
-    />
+  if (screen === 'home') return (
+    <div>
+      <SoundButton />
+      <HomeScreen error={error} onClearError={() => setError(null)} />
+    </div>
   );
-  if (screen === 'profile') return <ProfileSetup key={questions.join('||')} roomCode={roomCode} questions={questions} />;
+  if (screen === 'host-setup') return (
+    <div>
+      <SoundButton />
+      <HostSetupScreen
+        roomCode={roomCode}
+        onDone={(q) => { setQuestions(q); setScreen('profile'); }}
+      />
+    </div>
+  );
+  if (screen === 'profile') return (
+    <div>
+      <SoundButton />
+      <ProfileSetup key={questions.join('||')} roomCode={roomCode} questions={questions} />
+    </div>
+  );
   if (screen === 'waiting') return (
-    <WaitingScreen
-      roomCode={roomCode}
-      players={players}
-      readyCount={readyCount}
-      isHost={isHost}
-      gameError={gameError}
-      totalRounds={totalRounds}
-      onClearError={() => setGameError(null)}
-    />
+    <div>
+      <SoundButton />
+      <WaitingScreen
+        roomCode={roomCode}
+        players={players}
+        readyCount={readyCount}
+        isHost={isHost}
+        gameError={gameError}
+        totalRounds={totalRounds}
+        onClearError={() => setGameError(null)}
+      />
+    </div>
   );
   if (screen === 'question') return (
-    <QuestionScreen
-      questionData={questionData}
-      isSubject={isSubject}
-      mySubjectAnswer={mySubjectAnswer}
-      guessCount={guessCount}
-    />
+    <div>
+      <SoundButton />
+      <QuestionScreen
+        questionData={questionData}
+        isSubject={isSubject}
+        mySubjectAnswer={mySubjectAnswer}
+        guessCount={guessCount}
+      />
+    </div>
   );
   if (screen === 'reveal') return (
-    <Suspense fallback={<div className="screen" style={{ textAlign: 'center' }}><p className="waiting-text">Loading results...</p></div>}>
-      <RevealScreen
-        revealData={revealData}
-        isHost={isHost}
-        myId={myId}
-      />
-    </Suspense>
+    <div>
+      <SoundButton />
+      <Suspense fallback={<div className="screen" style={{ textAlign: 'center' }}><p className="waiting-text">Loading results...</p></div>}>
+        <RevealScreen
+          revealData={revealData}
+          isHost={isHost}
+          myId={myId}
+        />
+      </Suspense>
+    </div>
   );
   if (screen === 'final') return (
-    <Suspense fallback={<div className="screen" style={{ textAlign: 'center' }}><p className="waiting-text">Loading final scores...</p></div>}>
-      <FinalScreen finalScores={finalScores} myId={myId} />
-    </Suspense>
+    <div>
+      <SoundButton />
+      <Suspense fallback={<div className="screen" style={{ textAlign: 'center' }}><p className="waiting-text">Loading final scores...</p></div>}>
+        <FinalScreen finalScores={finalScores} myId={myId} />
+      </Suspense>
+    </div>
   );
   return null;
 }

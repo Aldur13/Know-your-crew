@@ -45,7 +45,16 @@ class GameRoom {
     this._colorIndex = 0;
 
     const hostColor = PLAYER_COLORS[this._colorIndex++ % PLAYER_COLORS.length];
-    this.players.set(hostId, { name: hostName, answers: null, score: 0, color: hostColor });
+    this.players.set(hostId, {
+      name: hostName,
+      answers: null,
+      score: 0,
+      color: hostColor,
+      streak: 0,
+      maxStreak: 0,
+      correctGuesses: 0,
+      totalGuesses: 0
+    });
   }
 
   configure({ questions, totalRounds, usingCustomQuestions, timeLimit }) {
@@ -82,7 +91,16 @@ class GameRoom {
     if (this.state !== 'lobby') return { error: 'Game already started' };
     if (this.players.size >= 18) return { error: 'Room is full (max 18)' };
     const color = PLAYER_COLORS[this._colorIndex++ % PLAYER_COLORS.length];
-    this.players.set(socketId, { name, answers: null, score: 0, color });
+    this.players.set(socketId, {
+      name,
+      answers: null,
+      score: 0,
+      color,
+      streak: 0,
+      maxStreak: 0,
+      correctGuesses: 0,
+      totalGuesses: 0
+    });
     return { ok: true };
   }
 
@@ -267,14 +285,34 @@ class GameRoom {
 
       const isCorrect = guess.optionId === round.correctOptionId;
       let points = 0;
+      let streakBonus = 0;
+      let streakBroken = false;
+
       if (isCorrect) {
         const ratio = Math.min(guess.timeTaken / this.timeLimit, 1);
         points = Math.max(500, Math.round(1000 * (1 - ratio * 0.5)));
+
+        // Update streak
+        player.streak++;
+        player.maxStreak = Math.max(player.maxStreak, player.streak);
+        player.correctGuesses++;
+
+        // Streak bonus: 1.25x at 3, 1.5x at 5, 2x at 10+
+        if (player.streak >= 10) streakBonus = Math.round(points * 1);
+        else if (player.streak >= 5) streakBonus = Math.round(points * 0.5);
+        else if (player.streak >= 3) streakBonus = Math.round(points * 0.25);
+
+        points += streakBonus;
       } else {
         wrongGuessCount++;
+        // Break streak
+        streakBroken = player.streak > 0;
+        player.streak = 0;
       }
 
+      player.totalGuesses++;
       player.score += points;
+
       results.push({
         playerId: socketId,
         playerName: player.name,
@@ -282,6 +320,9 @@ class GameRoom {
         optionId: guess.optionId,
         isCorrect,
         points,
+        streakBonus,
+        streak: player.streak,
+        streakBroken,
         totalScore: player.score
       });
     }
@@ -305,7 +346,17 @@ class GameRoom {
 
   getLeaderboard() {
     return [...this.players.entries()]
-      .map(([id, p]) => ({ id, name: p.name, score: p.score, color: p.color, isHost: id === this.hostId }))
+      .map(([id, p]) => ({
+        id,
+        name: p.name,
+        score: p.score,
+        color: p.color,
+        isHost: id === this.hostId,
+        streak: p.streak,
+        maxStreak: p.maxStreak,
+        correctGuesses: p.correctGuesses,
+        totalGuesses: p.totalGuesses
+      }))
       .sort((a, b) => b.score - a.score);
   }
 

@@ -1,3 +1,5 @@
+import { isSoundEnabled } from './audioSettings';
+
 let ctx = null;
 
 function getCtx() {
@@ -9,6 +11,7 @@ function getCtx() {
 }
 
 export function playLock() {
+  if (!isSoundEnabled()) return;
   const c = getCtx();
   if (!c) return;
   const osc = c.createOscillator();
@@ -23,6 +26,7 @@ export function playLock() {
 }
 
 export function playCorrect() {
+  if (!isSoundEnabled()) return;
   const c = getCtx();
   if (!c) return;
   [523, 659, 784].forEach((freq, i) => {
@@ -40,6 +44,7 @@ export function playCorrect() {
 }
 
 export function playWrong() {
+  if (!isSoundEnabled()) return;
   const c = getCtx();
   if (!c) return;
   const osc = c.createOscillator();
@@ -56,6 +61,7 @@ export function playWrong() {
 }
 
 export function playReveal() {
+  if (!isSoundEnabled()) return;
   const c = getCtx();
   if (!c) return;
   [392, 523, 659, 880].forEach((freq, i) => {

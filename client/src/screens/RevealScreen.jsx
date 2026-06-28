@@ -68,7 +68,11 @@ export default function RevealScreen({ revealData, isHost, myId }) {
               <span style={{ fontSize: '0.85rem', color: r.isCorrect ? 'var(--success)' : 'var(--danger)' }}>
                 {r.isCorrect ? '✓' : '✗'}
               </span>
-              {r.isCorrect && <span className="guess-pts">+{r.points}</span>}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
+                {r.isCorrect && <span className="guess-pts">+{r.points}</span>}
+                {r.streak > 0 && <span style={{ fontSize: '0.75rem', color: 'var(--accent)', fontWeight: 700 }}>🔥 {r.streak}</span>}
+                {r.streakBroken && <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>streak lost</span>}
+              </div>
             </div>
           ))}
         </div>

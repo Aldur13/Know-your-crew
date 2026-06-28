@@ -74,7 +74,10 @@ export default function FinalScreen({ finalScores, myId }) {
                   {p.name[0].toUpperCase()}
                 </span>
                 <span className="rank">#{idx + 4}</span>
-                <span className="score-name">{p.name}{p.id === myId ? ' (you)' : ''}</span>
+                <div style={{ flex: 1 }}>
+                  <span className="score-name">{p.name}{p.id === myId ? ' (you)' : ''}</span>
+                  {p.maxStreak > 0 && <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', marginTop: '2px' }}>Best streak: {p.maxStreak}</div>}
+                </div>
                 <span className="score-pts">{p.score.toLocaleString()}</span>
               </div>
             ))}

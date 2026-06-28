@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import socket from '../socket';
+import InstructionsModal from './InstructionsModal';
 
 export default function HomeScreen({ error, onClearError }) {
   const [name, setName] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [mode, setMode] = useState(null); // null | 'create' | 'join'
+  const [showInstructions, setShowInstructions] = useState(false);
 
   const trimmedName = name.trim();
   const trimmedCode = joinCode.trim();
@@ -91,6 +93,33 @@ export default function HomeScreen({ error, onClearError }) {
       <p style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: '0.8rem' }}>
         3–18 players · Works on any device
       </p>
+
+      <button
+        onClick={() => setShowInstructions(true)}
+        style={{
+          background: 'transparent',
+          border: '1px solid rgba(255,255,255,0.2)',
+          color: 'var(--text-dim)',
+          padding: '8px 16px',
+          borderRadius: '8px',
+          fontSize: '0.85rem',
+          cursor: 'pointer',
+          alignSelf: 'center',
+          transition: 'all 0.2s'
+        }}
+        onMouseOver={(e) => {
+          e.target.style.borderColor = 'var(--text-dim)';
+          e.target.style.color = 'var(--text)';
+        }}
+        onMouseOut={(e) => {
+          e.target.style.borderColor = 'rgba(255,255,255,0.2)';
+          e.target.style.color = 'var(--text-dim)';
+        }}
+      >
+        How to Play
+      </button>
+
+      {showInstructions && <InstructionsModal onClose={() => setShowInstructions(false)} />}
     </div>
   );
 }
