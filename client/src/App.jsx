@@ -32,16 +32,42 @@ export default function App() {
   useEffect(() => {
     socket.connect();
 
-    socket.on('connect', () => { setMyId(socket.id); setDisconnected(false); });
-    socket.on('disconnect', () => setDisconnected(true));
+    const handleConnect = () => {
+      setMyId(socket.id);
+      setDisconnected(false);
 
-    socket.on('joined-room', ({ code, isHost: host, questions: q, totalRounds: tr }) => {
+      // If we had a session, notify server to restore it
+      const session = JSON.parse(localStorage.getItem('gameSession') || 'null');
+      if (session?.roomCode && session?.screen && session?.screen !== 'home') {
+        socket.emit('reconnect-player', { roomCode: session.roomCode });
+      }
+    };
+
+    const handleDisconnect = () => {
+      // Don't immediately set disconnected = true on the first disconnect
+      // Wait a moment in case it's a tab switch (will reconnect quickly)
+      setTimeout(() => {
+        if (!socket.connected) {
+          setDisconnected(true);
+        }
+      }, 2000);
+    };
+
+    socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
+
+    const handleJoinedRoom = ({ code, isHost: host, questions: q, totalRounds: tr }) => {
       setRoomCode(code);
       setIsHost(host);
       if (q) setQuestions(q);
       if (tr) setTotalRounds(tr);
-      setScreen(host ? 'host-setup' : 'profile');
-    });
+      const newScreen = host ? 'host-setup' : 'profile';
+      setScreen(newScreen);
+      // Store session for reconnection
+      localStorage.setItem('gameSession', JSON.stringify({ roomCode: code, screen: newScreen }));
+    };
+
+    socket.on('joined-room', handleJoinedRoom);
 
     socket.on('room-configured', ({ questions: q, totalRounds: tr }) => {
       if (q) setQuestions(q);
@@ -55,6 +81,11 @@ export default function App() {
 
     socket.on('profile-accepted', () => {
       setScreen('waiting');
+      const session = JSON.parse(localStorage.getItem('gameSession') || 'null');
+      if (session) {
+        session.screen = 'waiting';
+        localStorage.setItem('gameSession', JSON.stringify(session));
+      }
     });
 
     socket.on('game-started', () => {
@@ -87,6 +118,8 @@ export default function App() {
     socket.on('game-over', ({ finalScores: scores }) => {
       setFinalScores(scores);
       setScreen('final');
+      // Clear session on game over
+      localStorage.removeItem('gameSession');
     });
 
     socket.on('join-error', ({ message }) => setError(message));
@@ -112,7 +145,12 @@ export default function App() {
 
   if (disconnected) return (
     <div className="screen" style={{ textAlign: 'center' }}>
-      <div className="error-banner">Connection lost — please refresh the page to rejoin.</div>
+      <div className="error-banner">
+        Connection lost. Attempting to reconnect...
+        <div style={{ fontSize: '0.85rem', marginTop: '8px', opacity: 0.8 }}>
+          If you don't reconnect in a few seconds, please refresh the page.
+        </div>
+      </div>
     </div>
   );
 

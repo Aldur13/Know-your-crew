@@ -15,9 +15,11 @@ const io = new Server(server, {
   cors: { origin: corsOrigin }
 });
 
-const rooms = new Map();        // code -> GameRoom
-const socketToRoom = new Map(); // socketId -> roomCode
-const revealTimers = new Map(); // code -> timeout ref
+const rooms = new Map();           // code -> GameRoom
+const socketToRoom = new Map();    // socketId -> roomCode
+const revealTimers = new Map();    // code -> timeout ref
+const disconnectTimers = new Map(); // code:socketId -> timeout ref (grace period for rejoins)
+const REJOIN_GRACE_PERIOD = 30 * 1000; // 30 seconds to rejoin
 
 const PORT = process.env.PORT || 3001;
 const LOBBY_TIMEOUT_MS = 60 * 60 * 1000;    // 1 hour
@@ -138,20 +140,55 @@ io.on('connection', (socket) => {
     if (!code) return;
     const room = rooms.get(code);
     if (!room) return;
-    room.removePlayer(socket.id);
-    socketToRoom.delete(socket.id);
-    if (room.players.size === 0) {
-      clearTimeout(revealTimers.get(code));
-      revealTimers.delete(code);
-      rooms.delete(code);
-      return;
+
+    // Don't immediately remove player — give them a grace period to rejoin (mobile tab switch)
+    const timerKey = `${code}:${socket.id}`;
+    const timer = setTimeout(() => {
+      room.removePlayer(socket.id);
+      socketToRoom.delete(socket.id);
+      disconnectTimers.delete(timerKey);
+
+      if (room.players.size === 0) {
+        clearTimeout(revealTimers.get(code));
+        revealTimers.delete(code);
+        rooms.delete(code);
+        return;
+      }
+      io.to(code).emit('room-update', room.getRoomUpdate());
+      if (room.state === 'playing' && room.allGuessesIn()) {
+        clearTimeout(revealTimers.get(code));
+        revealTimers.delete(code);
+        triggerReveal(room, code);
+      }
+    }, REJOIN_GRACE_PERIOD);
+    disconnectTimers.set(timerKey, timer);
+  });
+
+  socket.on('reconnect-player', ({ roomCode }) => {
+    const code = roomCode?.toUpperCase().trim();
+    if (!code) return;
+    const room = rooms.get(code);
+    if (!room) return;
+
+    // Check if this player is in the room (even if disconnected)
+    const player = room.players.get(socket.id);
+    if (!player) return;
+
+    // Cancel the removal timer if it exists
+    const timerKey = `${code}:${socket.id}`;
+    const timer = disconnectTimers.get(timerKey);
+    if (timer) {
+      clearTimeout(timer);
+      disconnectTimers.delete(timerKey);
     }
+
+    // Re-register socket to room
+    socketToRoom.set(socket.id, code);
+    socket.join(code);
+
+    // Send them the current state
+    socket.emit('joined-room', { code, isHost: socket.id === room.hostId, questions: room.questions, totalRounds: room.totalRounds });
     io.to(code).emit('room-update', room.getRoomUpdate());
-    if (room.state === 'playing' && room.allGuessesIn()) {
-      clearTimeout(revealTimers.get(code));
-      revealTimers.delete(code);
-      triggerReveal(room, code);
-    }
   });
 });
 
