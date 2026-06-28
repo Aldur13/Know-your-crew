@@ -34,7 +34,7 @@ export default function FinalScreen({ finalScores, myId }) {
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontSize: '1.2rem',
-                  fontWeight: 900,
+                  fontWeight: 600,
                   color: '#0a0a1a',
                   marginBottom: 4,
                   border: '2px solid rgba(255,255,255,0.2)'

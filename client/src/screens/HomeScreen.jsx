@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import socket from '../socket';
 import InstructionsModal from './InstructionsModal';
+import { HelpCircle, Plus, LogIn, ArrowLeft } from 'lucide-react';
 
 export default function HomeScreen({ error, onClearError }) {
   const [name, setName] = useState('');
@@ -48,11 +49,11 @@ export default function HomeScreen({ error, onClearError }) {
         {!mode && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '4px' }}>
             <button className="btn btn-primary" onClick={() => setMode('create')} disabled={!trimmedName}>
-              Create a Room
+              <span className="icon-btn-inner"><Plus size={18} /> Create a Room</span>
             </button>
             <div className="divider">or</div>
             <button className="btn btn-ghost" onClick={() => setMode('join')} disabled={!trimmedName}>
-              Join a Room
+              <span className="icon-btn-inner"><LogIn size={18} /> Join a Room</span>
             </button>
           </div>
         )}
@@ -63,9 +64,11 @@ export default function HomeScreen({ error, onClearError }) {
               You'll be the host. Share the room code with up to 17 friends!
             </p>
             <button className="btn btn-primary" onClick={handleCreate} disabled={!trimmedName}>
-              Create Room
+              <span className="icon-btn-inner"><Plus size={18} /> Create Room</span>
             </button>
-            <button className="btn btn-ghost" onClick={() => setMode(null)}>Back</button>
+            <button className="btn btn-ghost" onClick={() => setMode(null)}>
+              <span className="icon-btn-inner"><ArrowLeft size={16} /> Back</span>
+            </button>
           </div>
         )}
 
@@ -83,9 +86,11 @@ export default function HomeScreen({ error, onClearError }) {
               />
             </label>
             <button className="btn btn-primary" onClick={handleJoin} disabled={!trimmedName || trimmedCode.length < 4}>
-              Join Room
+              <span className="icon-btn-inner"><LogIn size={18} /> Join Room</span>
             </button>
-            <button className="btn btn-ghost" onClick={() => setMode(null)}>Back</button>
+            <button className="btn btn-ghost" onClick={() => setMode(null)}>
+              <span className="icon-btn-inner"><ArrowLeft size={16} /> Back</span>
+            </button>
           </div>
         )}
       </div>
@@ -96,27 +101,33 @@ export default function HomeScreen({ error, onClearError }) {
 
       <button
         onClick={() => setShowInstructions(true)}
+        data-tooltip="Learn how scoring and rounds work"
         style={{
           background: 'transparent',
-          border: '1px solid rgba(255,255,255,0.2)',
+          border: '1px solid rgba(255,255,255,0.15)',
           color: 'var(--text-dim)',
-          padding: '8px 16px',
+          padding: '8px 18px',
           borderRadius: '8px',
           fontSize: '0.85rem',
+          fontWeight: 500,
           cursor: 'pointer',
           alignSelf: 'center',
-          transition: 'all 0.2s'
+          transition: 'border-color 0.2s, color 0.2s',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          fontFamily: 'inherit'
         }}
         onMouseOver={(e) => {
-          e.target.style.borderColor = 'var(--text-dim)';
-          e.target.style.color = 'var(--text)';
+          e.currentTarget.style.borderColor = 'rgba(255,255,255,0.4)';
+          e.currentTarget.style.color = 'var(--text)';
         }}
         onMouseOut={(e) => {
-          e.target.style.borderColor = 'rgba(255,255,255,0.2)';
-          e.target.style.color = 'var(--text-dim)';
+          e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)';
+          e.currentTarget.style.color = 'var(--text-dim)';
         }}
       >
-        How to Play
+        <HelpCircle size={15} /> How to Play
       </button>
 
       {showInstructions && <InstructionsModal onClose={() => setShowInstructions(false)} />}

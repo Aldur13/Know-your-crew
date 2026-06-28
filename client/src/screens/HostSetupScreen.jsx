@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import socket from '../socket';
 import DEFAULT_QUESTIONS from '../questions';
+import { Copy, Check, Zap, MessageSquare, ArrowRight } from 'lucide-react';
 
 const TIME_OPTIONS = [
   { label: '10s', value: 10 },
@@ -49,8 +50,15 @@ export default function HostSetupScreen({ roomCode, onDone }) {
         <div className="label">Share this code to join</div>
         <div className="copy-row">
           <div className="code">{roomCode}</div>
-          <button className={`copy-btn${copied ? ' copied' : ''}`} onClick={handleCopy}>
-            {copied ? '✓ Copied!' : 'Copy'}
+          <button
+            className={`copy-btn${copied ? ' copied' : ''}`}
+            onClick={handleCopy}
+            data-tooltip={copied ? 'Copied!' : 'Copy room code'}
+          >
+            <span className="icon-btn-inner">
+              {copied ? <Check size={12} /> : <Copy size={12} />}
+              {copied ? 'Copied!' : 'Copy'}
+            </span>
           </button>
         </div>
       </div>
@@ -164,9 +172,12 @@ export default function HostSetupScreen({ roomCode, onDone }) {
                 onChange={(e) => setEnableSpeedRound(e.target.checked)}
                 style={{ width: '18px', height: '18px', cursor: 'pointer' }}
               />
-              <div>
-                <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>Speed Rounds</div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '2px' }}>10s timer, 2x streak bonus</div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                <Zap size={16} style={{ color: '#ff6b35', marginTop: '2px', flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>Speed Rounds</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '2px' }}>10s timer, 2x streak bonus</div>
+                </div>
               </div>
             </label>
             <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
@@ -176,9 +187,12 @@ export default function HostSetupScreen({ roomCode, onDone }) {
                 onChange={(e) => setEnableDebateRound(e.target.checked)}
                 style={{ width: '18px', height: '18px', cursor: 'pointer' }}
               />
-              <div>
-                <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>Debate Rounds</div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '2px' }}>30s, see other guesses before submit</div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                <MessageSquare size={16} style={{ color: '#7c4dff', marginTop: '2px', flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>Debate Rounds</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '2px' }}>30s, see other guesses before submit</div>
+                </div>
               </div>
             </label>
           </div>
@@ -191,7 +205,13 @@ export default function HostSetupScreen({ roomCode, onDone }) {
         onClick={handleContinue}
         disabled={!customValid}
       >
-        {customValid ? 'Continue to Profile →' : `Fill in all 10 questions (${filledCustom}/10)`}
+        <span className="icon-btn-inner">
+          {customValid ? (
+            <><ArrowRight size={18} /> Continue to Profile</>
+          ) : (
+            `Fill in all 10 questions (${filledCustom}/10)`
+          )}
+        </span>
       </button>
     </div>
   );

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import socket from '../socket';
+import { Check, Users, Copy } from 'lucide-react';
 
 export default function WaitingScreen({ roomCode, players, readyCount, isHost, gameError, onClearError }) {
   const [copied, setCopied] = useState(false);
@@ -26,21 +27,36 @@ export default function WaitingScreen({ roomCode, players, readyCount, isHost, g
         <div className="label">Share this code to join</div>
         <div className="copy-row">
           <div className="code">{roomCode}</div>
-          <button className={`copy-btn${copied ? ' copied' : ''}`} onClick={handleCopy}>
-            {copied ? '✓ Copied!' : 'Copy'}
+          <button
+            className={`copy-btn${copied ? ' copied' : ''}`}
+            onClick={handleCopy}
+            data-tooltip={copied ? 'Copied!' : 'Copy room code'}
+          >
+            <span className="icon-btn-inner">
+              {copied ? <Check size={12} /> : <Copy size={12} />}
+              {copied ? 'Copied!' : 'Copy'}
+            </span>
           </button>
         </div>
       </div>
 
       <div className="info-row">
-        <h3>Players</h3>
-        <span style={{ color: 'var(--text-dim)', fontSize: '0.85rem' }}>
+        <h3 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <Users size={14} /> Players
+        </h3>
+        <span style={{ color: 'var(--text-dim)', fontSize: '0.85rem', fontWeight: 500 }}>
           {readyCount}/{total} profiles ready
         </span>
       </div>
 
       <div className="scroll-list">
-        {players.map(p => (
+        {total === 0 ? (
+          <>
+            <div className="skeleton skeleton-row" />
+            <div className="skeleton skeleton-row" style={{ opacity: 0.7 }} />
+            <div className="skeleton skeleton-row" style={{ opacity: 0.45 }} />
+          </>
+        ) : players.map(p => (
           <div key={p.id} className="player-row">
             <div className="player-avatar" style={{ background: p.color || 'var(--primary)', fontSize: '1.4rem' }}>
               {p.avatar || p.name[0].toUpperCase()}
@@ -48,7 +64,7 @@ export default function WaitingScreen({ roomCode, players, readyCount, isHost, g
             <span className="player-name">{p.name}</span>
             {p.isHost && <span className="player-badge host">Host</span>}
             <span className={`player-badge ${p.profileReady ? 'ready' : ''}`}>
-              {p.profileReady ? '✓ Ready' : 'Filling in...'}
+              {p.profileReady ? <><Check size={11} /> Ready</> : 'Filling in...'}
             </span>
           </div>
         ))}

@@ -15,10 +15,16 @@
   --opt-b: #00d4aa;
   --opt-c: #7c4dff;
   --opt-d: #ff6b35;
+  /* Font weight scale */
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+  --fw-extrabold: 800;
+  --fw-black: 900;
 }
 
 body {
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
@@ -67,8 +73,8 @@ body {
 
 .subtitle { color: var(--text-dim); font-size: 1rem; }
 
-h2 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.5px; }
-h3 { font-size: 0.95rem; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1.5px; }
+h2 { font-size: 1.4rem; font-weight: var(--fw-bold); letter-spacing: -0.5px; }
+h3 { font-size: 0.85rem; font-weight: var(--fw-semibold); color: var(--text-dim); text-transform: uppercase; letter-spacing: 1.5px; }
 
 /* ── Buttons ── */
 .btn {
@@ -76,7 +82,8 @@ h3 { font-size: 0.95rem; font-weight: 600; color: var(--text-dim); text-transfor
   border-radius: 12px;
   padding: 14px 20px;
   font-size: 1.05rem;
-  font-weight: 700;
+  font-weight: var(--fw-bold);
+  font-family: inherit;
   cursor: pointer;
   width: 100%;
   transition: all 0.2s ease;
@@ -181,8 +188,18 @@ input::placeholder { color: var(--text-dim); }
   flex-shrink: 0;
 }
 
-.player-name { flex: 1; font-weight: 600; }
-.player-badge { font-size: 0.75rem; color: var(--text-dim); background: rgba(255,255,255,0.08); border-radius: 6px; padding: 2px 8px; }
+.player-name { flex: 1; font-weight: var(--fw-semibold); }
+.player-badge {
+  font-size: 0.72rem;
+  font-weight: var(--fw-medium);
+  color: var(--text-dim);
+  background: rgba(255,255,255,0.08);
+  border-radius: 6px;
+  padding: 3px 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
 .player-badge.ready { color: var(--success); background: rgba(107, 203, 119, 0.15); }
 .player-badge.host { color: var(--accent); background: rgba(255, 217, 61, 0.15); }
 
@@ -278,7 +295,7 @@ input::placeholder { color: var(--text-dim); }
   flex-shrink: 0;
 }
 
-.option-text { font-size: 1rem; font-weight: 600; line-height: 1.3; flex: 1; }
+.option-text { font-size: 1rem; font-weight: var(--fw-semibold); line-height: 1.3; flex: 1; }
 
 .option-player-dot {
   display: inline-block;
@@ -381,8 +398,8 @@ input::placeholder { color: var(--text-dim); }
 .guess-row.correct { border-left: 3px solid var(--success); }
 .guess-row.wrong { border-left: 3px solid var(--danger); }
 .guess-icon { font-size: 1rem; width: 20px; text-align: center; }
-.guess-name { flex: 1; font-size: 0.95rem; }
-.guess-pts { font-weight: 700; color: var(--accent); font-size: 0.9rem; }
+.guess-name { flex: 1; font-size: 0.95rem; font-weight: var(--fw-medium); }
+.guess-pts { font-weight: var(--fw-semibold); color: var(--accent); font-size: 0.9rem; }
 
 /* ── Leaderboard ── */
 .score-rows { display: flex; flex-direction: column; gap: 6px; }
@@ -400,8 +417,8 @@ input::placeholder { color: var(--text-dim); }
 .score-row.top1 { background: rgba(255,215,0,0.12); border: 1px solid rgba(255,215,0,0.3); }
 
 .rank { color: var(--text-dim); font-size: 0.85rem; width: 28px; }
-.score-name { flex: 1; font-weight: 600; }
-.score-pts { font-weight: 800; color: var(--accent); }
+.score-name { flex: 1; font-weight: var(--fw-semibold); }
+.score-pts { font-weight: var(--fw-bold); color: var(--accent); }
 
 /* ── Final screen ── */
 .podium {
@@ -454,4 +471,80 @@ input::placeholder { color: var(--text-dim); }
   .question-text { font-size: 1.25rem; }
   .option-btn { min-height: 60px; padding: 12px 12px; }
   .option-num { width: 28px; height: 28px; font-size: 0.85rem; }
+}
+
+/* ── Tooltips ── */
+[data-tooltip] { position: relative; }
+
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) scale(0.92);
+  background: rgba(10, 10, 26, 0.92);
+  color: #fff;
+  padding: 5px 10px;
+  border-radius: 7px;
+  font-size: 0.73rem;
+  font-weight: 500;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s, transform 0.15s;
+  border: 1px solid rgba(255,255,255,0.1);
+  z-index: 300;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+[data-tooltip]:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
+}
+
+/* ── Skeleton loaders ── */
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.04) 25%,
+    rgba(255,255,255,0.10) 50%,
+    rgba(255,255,255,0.04) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+.skeleton-row {
+  height: 56px;
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+
+.skeleton-row:last-child { margin-bottom: 0; }
+
+.skeleton-text {
+  height: 13px;
+  border-radius: 4px;
+  width: 60%;
+}
+
+.skeleton-text-sm {
+  height: 10px;
+  border-radius: 4px;
+  width: 40%;
+  margin-top: 5px;
+}
+
+/* ── Lucide icon alignment helper ── */
+.icon-btn-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }

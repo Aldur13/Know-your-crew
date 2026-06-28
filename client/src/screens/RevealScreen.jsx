@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import socket from '../socket';
 import { playReveal, playCorrect, playWrong } from '../utils/sounds';
+import { CheckCircle, XCircle, Star } from 'lucide-react';
 
 export default function RevealScreen({ revealData, isHost, myId }) {
   const myResult = revealData.results.find(r => r.playerId === myId);
@@ -23,13 +24,16 @@ export default function RevealScreen({ revealData, isHost, myId }) {
   return (
     <div className="screen">
       <div className="correct-answer-card">
-        <div className="correct-label">✓ Correct Answer</div>
+        <div className="correct-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
+          <CheckCircle size={13} /> Correct Answer
+        </div>
         <div className="correct-answer-text">"{revealData.correctAnswer}"</div>
         <div className="subject-line">— {revealData.subjectName}'s answer to: {revealData.question}</div>
       </div>
 
       {isMySubject ? (
         <div className="my-result subject">
+          <Star size={20} />
           <div>
             <div>You were in the spotlight</div>
             {subjectBonus > 0 && (
@@ -41,7 +45,9 @@ export default function RevealScreen({ revealData, isHost, myId }) {
         </div>
       ) : myResult ? (
         <div className={`my-result ${myResult.isCorrect ? 'correct' : 'wrong'}`}>
-          <span className="result-icon">{myResult.isCorrect ? '✓' : '✗'}</span>
+          <span className="result-icon">
+            {myResult.isCorrect ? <CheckCircle size={22} /> : <XCircle size={22} />}
+          </span>
           <div>
             <div>{myResult.isCorrect ? 'Correct!' : 'Not quite!'}</div>
             {myResult.isCorrect && (
@@ -67,14 +73,15 @@ export default function RevealScreen({ revealData, isHost, myId }) {
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontSize: '0.75rem',
+                  fontWeight: 600,
                   flexShrink: 0
                 }}
               >
                 {r.playerAvatar || r.playerName[0].toUpperCase()}
               </span>
               <span className="guess-name">{r.playerName}{r.playerId === myId ? ' (you)' : ''}</span>
-              <span style={{ fontSize: '0.85rem', color: r.isCorrect ? 'var(--success)' : 'var(--danger)' }}>
-                {r.isCorrect ? '✓' : '✗'}
+              <span style={{ display: 'flex', color: r.isCorrect ? 'var(--success)' : 'var(--danger)' }}>
+                {r.isCorrect ? <CheckCircle size={15} /> : <XCircle size={15} />}
               </span>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
                 {r.isCorrect && <span className="guess-pts">+{r.points}</span>}
@@ -101,7 +108,7 @@ export default function RevealScreen({ revealData, isHost, myId }) {
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontSize: '0.7rem',
-                  fontWeight: 700,
+                  fontWeight: 600,
                   color: '#0a0a1a',
                   flexShrink: 0
                 }}

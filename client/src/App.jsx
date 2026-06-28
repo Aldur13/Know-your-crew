@@ -1,4 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
+import { Volume2, VolumeX } from 'lucide-react';
 import socket from './socket';
 import DEFAULT_QUESTIONS from './questions';
 import { isSoundEnabled, toggleSound } from './utils/audioSettings';
@@ -153,27 +154,26 @@ export default function App() {
   const SoundButton = () => (
     <button
       onClick={handleSoundToggle}
+      data-tooltip={soundEnabled ? 'Mute sounds' : 'Unmute sounds'}
       style={{
         position: 'fixed',
         top: '16px',
         right: '16px',
-        width: '44px',
-        height: '44px',
+        width: '40px',
+        height: '40px',
         borderRadius: '50%',
-        background: soundEnabled ? 'var(--primary)' : 'rgba(255,255,255,0.1)',
-        border: '1px solid rgba(255,255,255,0.2)',
+        background: soundEnabled ? 'var(--primary)' : 'rgba(255,255,255,0.08)',
+        border: '1px solid rgba(255,255,255,0.15)',
         color: 'var(--text)',
         cursor: 'pointer',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontSize: '1.2rem',
         transition: 'all 0.2s',
         zIndex: 100
       }}
-      title={soundEnabled ? 'Mute' : 'Unmute'}
     >
-      {soundEnabled ? '♪' : '✕'}
+      {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
     </button>
   );
 
