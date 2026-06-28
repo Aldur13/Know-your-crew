@@ -15,11 +15,12 @@ const io = new Server(server, {
   cors: { origin: corsOrigin }
 });
 
-const rooms = new Map();           // code -> GameRoom
-const socketToRoom = new Map();    // socketId -> roomCode
-const revealTimers = new Map();    // code -> timeout ref
-const disconnectTimers = new Map(); // code:socketId -> timeout ref (grace period for rejoins)
-const REJOIN_GRACE_PERIOD = 30 * 1000; // 30 seconds to rejoin
+const rooms = new Map();             // code -> GameRoom
+const socketToRoom = new Map();      // socketId -> roomCode
+const revealTimers = new Map();      // code -> timeout ref
+const disconnectTimers = new Map();  // timerKey -> timeout ref
+const pendingRejoin = new Map();     // oldSocketId -> { code, name } (for reconnect matching)
+const REJOIN_GRACE_PERIOD = 30 * 1000;
 
 const PORT = process.env.PORT || 3001;
 const LOBBY_TIMEOUT_MS = 60 * 60 * 1000;    // 1 hour
@@ -30,6 +31,19 @@ if (process.env.NODE_ENV === 'production') {
   app.get('*', (req, res) => res.sendFile(path.join(__dirname, '../client/dist/index.html')));
 }
 
+function deleteRoom(code) {
+  clearTimeout(revealTimers.get(code));
+  revealTimers.delete(code);
+  // Clear all pending disconnect timers for this room
+  for (const [key, timer] of disconnectTimers) {
+    if (key.startsWith(`${code}:`)) {
+      clearTimeout(timer);
+      disconnectTimers.delete(key);
+    }
+  }
+  rooms.delete(code);
+}
+
 // Clean up abandoned/finished rooms every 10 minutes
 setInterval(() => {
   const now = Date.now();
@@ -37,9 +51,7 @@ setInterval(() => {
     const age = now - (room.lastActivity || 0);
     if ((room.state === 'lobby' && age > LOBBY_TIMEOUT_MS) ||
         (room.state === 'finished' && age > FINISHED_TIMEOUT_MS)) {
-      clearTimeout(revealTimers.get(code));
-      revealTimers.delete(code);
-      rooms.delete(code);
+      deleteRoom(code);
     }
   }
 }, 10 * 60 * 1000);
@@ -73,6 +85,8 @@ io.on('connection', (socket) => {
     io.to(upperCode).emit('room-update', room.getRoomUpdate());
   });
 
+  const ALLOWED_AVATARS = new Set(['⭐','🎭','🎨','🎪','🎯','🎸','🎬','🏆','🎲','🎮','🚀','💎']);
+
   socket.on('submit-profile', ({ answers, avatar }) => {
     const code = socketToRoom.get(socket.id);
     const room = rooms.get(code);
@@ -84,7 +98,8 @@ io.on('connection', (socket) => {
         sanitized[key] = answers[key].trim().slice(0, 60);
       }
     }
-    room.submitProfile(socket.id, sanitized, avatar);
+    const safeAvatar = typeof avatar === 'string' && ALLOWED_AVATARS.has(avatar) ? avatar : null;
+    room.submitProfile(socket.id, sanitized, safeAvatar);
     io.to(code).emit('room-update', room.getRoomUpdate());
     socket.emit('profile-accepted');
   });
@@ -141,17 +156,21 @@ io.on('connection', (socket) => {
     const room = rooms.get(code);
     if (!room) return;
 
-    // Don't immediately remove player — give them a grace period to rejoin (mobile tab switch)
+    const player = room.players.get(socket.id);
+    if (player) {
+      // Store old socket ID so reconnect can find this player by name
+      pendingRejoin.set(socket.id, { code, name: player.name });
+    }
+
     const timerKey = `${code}:${socket.id}`;
     const timer = setTimeout(() => {
+      pendingRejoin.delete(socket.id);
       room.removePlayer(socket.id);
       socketToRoom.delete(socket.id);
       disconnectTimers.delete(timerKey);
 
       if (room.players.size === 0) {
-        clearTimeout(revealTimers.get(code));
-        revealTimers.delete(code);
-        rooms.delete(code);
+        deleteRoom(code);
         return;
       }
       io.to(code).emit('room-update', room.getRoomUpdate());
@@ -170,23 +189,33 @@ io.on('connection', (socket) => {
     const room = rooms.get(code);
     if (!room) return;
 
-    // Check if this player is in the room (even if disconnected)
-    const player = room.players.get(socket.id);
+    // Find old socket ID by matching room code stored in pendingRejoin
+    let oldSocketId = null;
+    for (const [oldId, info] of pendingRejoin) {
+      if (info.code === code) {
+        oldSocketId = oldId;
+        break;
+      }
+    }
+    if (!oldSocketId) return;
+
+    const player = room.players.get(oldSocketId);
     if (!player) return;
 
-    // Cancel the removal timer if it exists
-    const timerKey = `${code}:${socket.id}`;
-    const timer = disconnectTimers.get(timerKey);
-    if (timer) {
-      clearTimeout(timer);
-      disconnectTimers.delete(timerKey);
-    }
+    // Cancel the removal timer
+    const timerKey = `${code}:${oldSocketId}`;
+    clearTimeout(disconnectTimers.get(timerKey));
+    disconnectTimers.delete(timerKey);
+    pendingRejoin.delete(oldSocketId);
 
-    // Re-register socket to room
+    // Move player entry to new socket ID
+    room.players.delete(oldSocketId);
+    room.players.set(socket.id, player);
+    if (room.hostId === oldSocketId) room.hostId = socket.id;
+    socketToRoom.delete(oldSocketId);
     socketToRoom.set(socket.id, code);
     socket.join(code);
 
-    // Send them the current state
     socket.emit('joined-room', { code, isHost: socket.id === room.hostId, questions: room.questions, totalRounds: room.totalRounds });
     io.to(code).emit('room-update', room.getRoomUpdate());
   });
@@ -203,8 +232,9 @@ function sendNextQuestion(room, code) {
     roundNum: data.roundNum,
     totalRounds: data.totalRounds,
     totalPlayers: data.totalPlayers,
-    timeLimit: room.timeLimit,
+    timeLimit: data.timeLimit,
     roundType: data.roundType,
+    specialType: data.specialType,
     ...(data.roundType === 'player-guess' ? { correctAnswer: data.correctAnswer } : {})
   });
 
@@ -216,7 +246,7 @@ function sendNextQuestion(room, code) {
   const timer = setTimeout(() => {
     revealTimers.delete(code);
     if (room.state === 'playing' && room.currentRound) triggerReveal(room, code);
-  }, room.timeLimit + 500);
+  }, data.timeLimit + 500);
   revealTimers.set(code, timer);
 }
 

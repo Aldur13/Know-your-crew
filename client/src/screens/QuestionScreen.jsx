@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import socket from '../socket';
-import { playLock, playCorrect, playWrong } from '../utils/sounds';
+import { playLock } from '../utils/sounds';
 
 const SLOT_COLORS = ['#e91e8c', '#00d4aa', '#7c4dff', '#ff6b35'];
 
@@ -41,10 +41,20 @@ export default function QuestionScreen({ questionData, isSubject, mySubjectAnswe
   const eligibleTotal = guessCount.total || (questionData.totalPlayers - 1);
   const isPlayerGuess = questionData.roundType === 'player-guess';
 
+  const specialType = questionData.specialType;
+  const specialBadge = specialType === 'speed'
+    ? { label: 'Speed Round', color: '#ff6b35' }
+    : specialType === 'debate'
+    ? { label: 'Debate Round', color: '#7c4dff' }
+    : null;
+
   if (isSubject) {
     return (
       <div className="screen">
-        <div className="round-badge">Round {questionData.roundNum} / {questionData.totalRounds}</div>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', alignItems: 'center' }}>
+          <div className="round-badge">Round {questionData.roundNum} / {questionData.totalRounds}</div>
+          {specialBadge && <div className="round-badge" style={{ background: specialBadge.color + '22', color: specialBadge.color, borderColor: specialBadge.color + '55' }}>{specialBadge.label}</div>}
+        </div>
         <div className="timer-bar">
           <div className="timer-fill" style={{ width: `${pct}%`, backgroundColor: timerColor }} />
         </div>
@@ -80,7 +90,10 @@ export default function QuestionScreen({ questionData, isSubject, mySubjectAnswe
   if (isPlayerGuess) {
     return (
       <div className="screen">
-        <div className="round-badge">Round {questionData.roundNum} / {questionData.totalRounds}</div>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', alignItems: 'center' }}>
+          <div className="round-badge">Round {questionData.roundNum} / {questionData.totalRounds}</div>
+          {specialBadge && <div className="round-badge" style={{ background: specialBadge.color + '22', color: specialBadge.color, borderColor: specialBadge.color + '55' }}>{specialBadge.label}</div>}
+        </div>
         <div className="timer-bar">
           <div className="timer-fill" style={{ width: `${pct}%`, backgroundColor: timerColor }} />
         </div>
@@ -137,7 +150,10 @@ export default function QuestionScreen({ questionData, isSubject, mySubjectAnswe
   // answer-guess (default)
   return (
     <div className="screen">
-      <div className="round-badge">Round {questionData.roundNum} / {questionData.totalRounds}</div>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', alignItems: 'center' }}>
+        <div className="round-badge">Round {questionData.roundNum} / {questionData.totalRounds}</div>
+        {specialBadge && <div className="round-badge" style={{ background: specialBadge.color + '22', color: specialBadge.color, borderColor: specialBadge.color + '55' }}>{specialBadge.label}</div>}
+      </div>
       <div className="timer-bar">
         <div className="timer-fill" style={{ width: `${pct}%`, backgroundColor: timerColor }} />
       </div>

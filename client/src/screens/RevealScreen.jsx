@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import socket from '../socket';
-import { playReveal } from '../utils/sounds';
+import { playReveal, playCorrect, playWrong } from '../utils/sounds';
 
 export default function RevealScreen({ revealData, isHost, myId }) {
   const myResult = revealData.results.find(r => r.playerId === myId);
@@ -9,7 +9,15 @@ export default function RevealScreen({ revealData, isHost, myId }) {
   const subjectBonus = revealData.subjectBonus ?? wrongGuesses * 75;
 
   useEffect(() => {
-    playReveal();
+    if (isMySubject) {
+      playReveal();
+    } else if (myResult?.isCorrect) {
+      playCorrect();
+    } else if (myResult && !myResult.isCorrect) {
+      playWrong();
+    } else {
+      playReveal();
+    }
   }, []);
 
   return (

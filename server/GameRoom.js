@@ -66,11 +66,20 @@ class GameRoom {
       this.usingCustomQuestions = usingCustomQuestions;
     }
 
+    let questionsChanged = false;
     if (Array.isArray(questions)) {
       const cleaned = questions.map(q => (typeof q === 'string' ? q.trim().slice(0, 100) : '')).filter(Boolean);
-      this.questions = cleaned.length > 0 ? cleaned : [...DEFAULT_QUESTIONS];
+      const newQuestions = cleaned.length > 0 ? cleaned : [...DEFAULT_QUESTIONS];
+      if (JSON.stringify(newQuestions) !== JSON.stringify(this.questions)) {
+        this.questions = newQuestions;
+        questionsChanged = true;
+      }
     } else if (!this.usingCustomQuestions) {
-      this.questions = [...DEFAULT_QUESTIONS];
+      const defaults = [...DEFAULT_QUESTIONS];
+      if (JSON.stringify(defaults) !== JSON.stringify(this.questions)) {
+        this.questions = defaults;
+        questionsChanged = true;
+      }
     }
 
     if (typeof totalRounds === 'number' && !isNaN(totalRounds)) {
@@ -88,9 +97,11 @@ class GameRoom {
       };
     }
 
-    // Reset all profiles since questions may have changed
-    for (const player of this.players.values()) {
-      player.answers = null;
+    // Only reset profiles if the questions actually changed
+    if (questionsChanged) {
+      for (const player of this.players.values()) {
+        player.answers = null;
+      }
     }
 
     return { ok: true };
@@ -163,17 +174,29 @@ class GameRoom {
     }
 
     const shuffled = shuffle(pool).slice(0, this.totalRounds);
-    this.roundPool = shuffled.map((item, idx) => ({
-      ...item,
-      roundType: idx % 2 === 0 ? 'answer-guess' : 'player-guess'
-    }));
+    this.roundPool = shuffled.map((item, idx) => {
+      const baseType = idx % 2 === 0 ? 'answer-guess' : 'player-guess';
+      // Every 5th round (0-indexed: 4, 9, 14...) becomes a special round if enabled
+      let specialType = null;
+      if (idx > 0 && idx % 5 === 4) {
+        if (this.roundTypes.speedRound && this.roundTypes.debateRound) {
+          specialType = idx % 10 === 4 ? 'speed' : 'debate';
+        } else if (this.roundTypes.speedRound) {
+          specialType = 'speed';
+        } else if (this.roundTypes.debateRound) {
+          specialType = 'debate';
+        }
+      }
+      return { ...item, roundType: baseType, specialType };
+    });
 
     this.currentRoundIndex = 0;
     return { ok: true };
   }
 
   buildCurrentQuestion() {
-    const { subjectId, questionIndex, roundType } = this.roundPool[this.currentRoundIndex];
+    const { subjectId, questionIndex, roundType, specialType } = this.roundPool[this.currentRoundIndex];
+    const roundTimeLimit = specialType === 'speed' ? 10000 : specialType === 'debate' ? 30000 : this.timeLimit;
     const subject = this.players.get(subjectId);
     const question = this.questions[questionIndex];
     const correctAnswer = subject.answers[`q${questionIndex}`].trim();
@@ -197,7 +220,9 @@ class GameRoom {
         options,
         questionSentAt: Date.now(),
         guesses: new Map(),
-        roundType: 'player-guess'
+        roundType: 'player-guess',
+        specialType,
+        roundTimeLimit
       };
 
       return {
@@ -209,7 +234,9 @@ class GameRoom {
         roundNum: this.currentRoundIndex + 1,
         totalRounds: this.roundPool.length,
         totalPlayers: this.players.size,
-        roundType: 'player-guess'
+        roundType: 'player-guess',
+        specialType,
+        timeLimit: roundTimeLimit
       };
     }
 
@@ -248,7 +275,9 @@ class GameRoom {
       options,
       questionSentAt: Date.now(),
       guesses: new Map(),
-      roundType: 'answer-guess'
+      roundType: 'answer-guess',
+      specialType,
+      roundTimeLimit
     };
 
     return {
@@ -260,7 +289,9 @@ class GameRoom {
       roundNum: this.currentRoundIndex + 1,
       totalRounds: this.roundPool.length,
       totalPlayers: this.players.size,
-      roundType: 'answer-guess'
+      roundType: 'answer-guess',
+      specialType,
+      timeLimit: roundTimeLimit
     };
   }
 
@@ -301,7 +332,8 @@ class GameRoom {
       let streakBroken = false;
 
       if (isCorrect) {
-        const ratio = Math.min(guess.timeTaken / this.timeLimit, 1);
+        const effectiveTimeLimit = round.roundTimeLimit || this.timeLimit;
+        const ratio = Math.min(guess.timeTaken / effectiveTimeLimit, 1);
         points = Math.max(500, Math.round(1000 * (1 - ratio * 0.5)));
 
         // Update streak
@@ -309,10 +341,11 @@ class GameRoom {
         player.maxStreak = Math.max(player.maxStreak, player.streak);
         player.correctGuesses++;
 
-        // Streak bonus: 1.25x at 3, 1.5x at 5, 2x at 10+
-        if (player.streak >= 10) streakBonus = Math.round(points * 1);
-        else if (player.streak >= 5) streakBonus = Math.round(points * 0.5);
-        else if (player.streak >= 3) streakBonus = Math.round(points * 0.25);
+        // Streak bonus multiplier: 2x on speed rounds
+        const streakMultiplier = round.specialType === 'speed' ? 2 : 1;
+        if (player.streak >= 10) streakBonus = Math.round(points * 1 * streakMultiplier);
+        else if (player.streak >= 5) streakBonus = Math.round(points * 0.5 * streakMultiplier);
+        else if (player.streak >= 3) streakBonus = Math.round(points * 0.25 * streakMultiplier);
 
         points += streakBonus;
       } else {
