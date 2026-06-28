@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import socket from './socket';
+import DEFAULT_QUESTIONS from './questions';
 import HomeScreen from './screens/HomeScreen';
+import HostSetupScreen from './screens/HostSetupScreen';
 import ProfileSetup from './screens/ProfileSetup';
 import WaitingScreen from './screens/WaitingScreen';
 import QuestionScreen from './screens/QuestionScreen';
@@ -23,6 +25,8 @@ export default function App() {
   const [error, setError] = useState(null);
   const [gameError, setGameError] = useState(null);
   const [disconnected, setDisconnected] = useState(false);
+  const [questions, setQuestions] = useState(DEFAULT_QUESTIONS);
+  const [totalRounds, setTotalRounds] = useState(20);
 
   useEffect(() => {
     socket.connect();
@@ -30,10 +34,17 @@ export default function App() {
     socket.on('connect', () => { setMyId(socket.id); setDisconnected(false); });
     socket.on('disconnect', () => setDisconnected(true));
 
-    socket.on('joined-room', ({ code, isHost: host }) => {
+    socket.on('joined-room', ({ code, isHost: host, questions: q, totalRounds: tr }) => {
       setRoomCode(code);
       setIsHost(host);
-      setScreen('profile');
+      if (q) setQuestions(q);
+      if (tr) setTotalRounds(tr);
+      setScreen(host ? 'host-setup' : 'profile');
+    });
+
+    socket.on('room-configured', ({ questions: q, totalRounds: tr }) => {
+      if (q) setQuestions(q);
+      if (tr) setTotalRounds(tr);
     });
 
     socket.on('room-update', ({ players: p, readyCount: rc }) => {
@@ -84,6 +95,7 @@ export default function App() {
       socket.off('connect');
       socket.off('disconnect');
       socket.off('joined-room');
+      socket.off('room-configured');
       socket.off('room-update');
       socket.off('profile-accepted');
       socket.off('game-started');
@@ -110,7 +122,13 @@ export default function App() {
   );
 
   if (screen === 'home') return <HomeScreen error={error} onClearError={() => setError(null)} />;
-  if (screen === 'profile') return <ProfileSetup roomCode={roomCode} />;
+  if (screen === 'host-setup') return (
+    <HostSetupScreen
+      roomCode={roomCode}
+      onDone={(q) => { setQuestions(q); setScreen('profile'); }}
+    />
+  );
+  if (screen === 'profile') return <ProfileSetup key={questions.join('||')} roomCode={roomCode} questions={questions} />;
   if (screen === 'waiting') return (
     <WaitingScreen
       roomCode={roomCode}
@@ -118,6 +136,7 @@ export default function App() {
       readyCount={readyCount}
       isHost={isHost}
       gameError={gameError}
+      totalRounds={totalRounds}
       onClearError={() => setGameError(null)}
     />
   );

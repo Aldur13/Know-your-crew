@@ -38,6 +38,7 @@ export default function QuestionScreen({ questionData, isSubject, mySubjectAnswe
   const pct = (timeLeft / (questionData.timeLimit / 1000)) * 100;
   const timerColor = pct > 40 ? 'var(--accent)' : pct > 20 ? '#ff9800' : 'var(--danger)';
   const eligibleTotal = guessCount.total || (questionData.totalPlayers - 1);
+  const isPlayerGuess = questionData.roundType === 'player-guess';
 
   if (isSubject) {
     return (
@@ -51,7 +52,9 @@ export default function QuestionScreen({ questionData, isSubject, mySubjectAnswe
           <div className="spotlight-emoji">🌟</div>
           <h2>You're in the spotlight!</h2>
           <p style={{ color: 'var(--text-dim)', marginTop: '6px', fontSize: '0.9rem' }}>
-            Your coworkers are guessing your answer to:
+            {isPlayerGuess
+              ? 'Your crew is guessing which answer is yours!'
+              : 'Your coworkers are guessing your answer to:'}
           </p>
           <p style={{ fontWeight: 700, fontSize: '1.1rem', marginTop: '10px' }}>{questionData.question}</p>
           <div className="your-answer-box">
@@ -74,6 +77,55 @@ export default function QuestionScreen({ questionData, isSubject, mySubjectAnswe
     );
   }
 
+  if (isPlayerGuess) {
+    return (
+      <div className="screen">
+        <div className="round-badge">Round {questionData.roundNum} / {questionData.totalRounds}</div>
+        <div className="timer-bar">
+          <div className="timer-fill" style={{ width: `${pct}%`, backgroundColor: timerColor }} />
+        </div>
+        <div style={{ textAlign: 'center', color: timerColor, fontWeight: 700, fontSize: '1.4rem' }}>
+          {Math.ceil(timeLeft)}
+        </div>
+
+        <div className="question-box">
+          <p className="question-label" style={{ fontSize: '0.9rem', color: 'var(--text-dim)' }}>
+            Someone answered this to: <strong>{questionData.question}</strong>
+          </p>
+          <p className="question-text" style={{ fontSize: '1.6rem', fontWeight: 800, marginTop: '10px' }}>
+            "{questionData.correctAnswer}"
+          </p>
+          <p style={{ marginTop: '10px', fontSize: '1rem', color: 'var(--text-dim)' }}>Who said it?</p>
+        </div>
+
+        <div className="options-grid">
+          {questionData.options.map((opt, idx) => (
+            <button
+              key={opt.id}
+              className={`option-btn${selected === opt.id ? ' selected' : ''}${hasAnswered ? ' answered' : ''}`}
+              style={{ backgroundColor: COLORS[idx] }}
+              onClick={() => handleGuess(opt.id)}
+              disabled={hasAnswered}
+            >
+              <span className="option-shape">{SHAPES[idx]}</span>
+              <span className="option-text">{opt.text}</span>
+            </button>
+          ))}
+        </div>
+
+        {hasAnswered && (
+          <div className="answered-status">
+            <p>✓ Answer locked in!</p>
+            <p style={{ marginTop: '6px' }}>
+              <strong>{guessCount.count}</strong> / {eligibleTotal} players have answered
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // answer-guess (default)
   return (
     <div className="screen">
       <div className="round-badge">Round {questionData.roundNum} / {questionData.totalRounds}</div>
@@ -85,8 +137,12 @@ export default function QuestionScreen({ questionData, isSubject, mySubjectAnswe
       </div>
 
       <div className="question-box">
-        <p className="question-label">
-          What is <strong>{questionData.subjectName}'s</strong> answer to:
+        <p className="question-label">Whose answer is it?</p>
+        <p style={{ fontSize: '1.7rem', fontWeight: 800, textAlign: 'center', margin: '6px 0 2px' }}>
+          {questionData.subjectName}
+        </p>
+        <p style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: '0.9rem', marginBottom: '6px' }}>
+          answered this question:
         </p>
         <p className="question-text">{questionData.question}</p>
       </div>

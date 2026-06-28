@@ -52,7 +52,7 @@ io.on('connection', (socket) => {
     rooms.set(room.code, room);
     socketToRoom.set(socket.id, room.code);
     socket.join(room.code);
-    socket.emit('joined-room', { code: room.code, isHost: true });
+    socket.emit('joined-room', { code: room.code, isHost: true, questions: room.questions, totalRounds: room.totalRounds });
     io.to(room.code).emit('room-update', room.getRoomUpdate());
   });
 
@@ -68,7 +68,7 @@ io.on('connection', (socket) => {
     if (result.error) { socket.emit('join-error', { message: result.error }); return; }
     socketToRoom.set(socket.id, upperCode);
     socket.join(upperCode);
-    socket.emit('joined-room', { code: upperCode, isHost: false });
+    socket.emit('joined-room', { code: upperCode, isHost: false, questions: room.questions, totalRounds: room.totalRounds });
     io.to(upperCode).emit('room-update', room.getRoomUpdate());
   });
 
@@ -86,6 +86,15 @@ io.on('connection', (socket) => {
     room.submitProfile(socket.id, sanitized);
     io.to(code).emit('room-update', room.getRoomUpdate());
     socket.emit('profile-accepted');
+  });
+
+  socket.on('configure-room', ({ questions, totalRounds, usingCustomQuestions }) => {
+    const code = socketToRoom.get(socket.id);
+    const room = rooms.get(code);
+    if (!room || socket.id !== room.hostId) return;
+    room.configure({ questions, totalRounds, usingCustomQuestions });
+    io.to(code).emit('room-configured', { questions: room.questions, totalRounds: room.totalRounds });
+    io.to(code).emit('room-update', room.getRoomUpdate());
   });
 
   socket.on('start-game', () => {

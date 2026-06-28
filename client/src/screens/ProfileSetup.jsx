@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import socket from '../socket';
-import QUESTIONS from '../questions';
 
-export default function ProfileSetup({ roomCode }) {
-  const [answers, setAnswers] = useState(Object.fromEntries(QUESTIONS.map((_, i) => [`q${i}`, ''])));
+export default function ProfileSetup({ roomCode, questions }) {
+  const [answers, setAnswers] = useState(Object.fromEntries(questions.map((_, i) => [`q${i}`, ''])));
   const [submitting, setSubmitting] = useState(false);
 
-  const allFilled = QUESTIONS.every((_, i) => answers[`q${i}`].trim().length > 0);
+  const allFilled = questions.every((_, i) => answers[`q${i}`]?.trim().length > 0);
 
   const handleSubmit = () => {
     if (!allFilled || submitting) return;
@@ -24,13 +23,13 @@ export default function ProfileSetup({ roomCode }) {
       <div>
         <h2>Your Profile</h2>
         <p className="subtitle" style={{ marginTop: '4px' }}>
-          Answer all 10 questions — your coworkers will guess your answers!
+          Answer all {questions.length} questions — your crew will guess your answers!
         </p>
       </div>
 
       <div className="card">
         <div className="profile-form">
-          {QUESTIONS.map((q, i) => (
+          {questions.map((q, i) => (
             <div key={i} className="profile-question">
               <label>
                 <span style={{ color: 'var(--text-dim)', marginRight: '6px' }}>{i + 1}.</span>
@@ -54,7 +53,7 @@ export default function ProfileSetup({ roomCode }) {
         disabled={!allFilled || submitting}
         style={{ marginTop: '4px' }}
       >
-        {submitting ? 'Submitting...' : `Submit Profile (${QUESTIONS.filter((_, i) => answers[`q${i}`].trim()).length}/${QUESTIONS.length} filled)`}
+        {submitting ? 'Submitting...' : `Submit Profile (${questions.filter((_, i) => answers[`q${i}`]?.trim()).length}/${questions.length} filled)`}
       </button>
     </div>
   );

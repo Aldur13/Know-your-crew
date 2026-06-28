@@ -1,7 +1,8 @@
-const QUESTIONS = require('./questions');
+const DEFAULT_QUESTIONS = require('./questions');
+const DEFAULT_ANSWERS = require('./defaultAnswers');
 
 const TIME_LIMIT_MS = 20000;
-const TOTAL_ROUNDS = 20;
+const DEFAULT_TOTAL_ROUNDS = 20;
 
 function generateCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -24,13 +25,42 @@ class GameRoom {
     this.code = generateCode();
     this.state = 'lobby';
     this.hostId = hostId;
-    this.players = new Map(); // socketId -> { name, answers, score }
+    this.players = new Map();
     this.roundPool = [];
     this.currentRoundIndex = 0;
     this.currentRound = null;
     this.lastActivity = Date.now();
+    this.questions = [...DEFAULT_QUESTIONS];
+    this.totalRounds = DEFAULT_TOTAL_ROUNDS;
+    this.usingCustomQuestions = false;
 
     this.players.set(hostId, { name: hostName, answers: null, score: 0 });
+  }
+
+  configure({ questions, totalRounds, usingCustomQuestions }) {
+    if (this.state !== 'lobby') return { error: 'Cannot configure after game has started' };
+
+    if (typeof usingCustomQuestions === 'boolean') {
+      this.usingCustomQuestions = usingCustomQuestions;
+    }
+
+    if (Array.isArray(questions)) {
+      const cleaned = questions.map(q => (typeof q === 'string' ? q.trim().slice(0, 100) : '')).filter(Boolean);
+      this.questions = cleaned.length > 0 ? cleaned : [...DEFAULT_QUESTIONS];
+    } else if (!this.usingCustomQuestions) {
+      this.questions = [...DEFAULT_QUESTIONS];
+    }
+
+    if (typeof totalRounds === 'number' && !isNaN(totalRounds)) {
+      this.totalRounds = Math.max(5, Math.min(40, Math.round(totalRounds)));
+    }
+
+    // Reset all profiles since questions may have changed
+    for (const player of this.players.values()) {
+      player.answers = null;
+    }
+
+    return { ok: true };
   }
 
   addPlayer(socketId, name) {
@@ -70,28 +100,73 @@ class GameRoom {
   }
 
   startGame() {
-    if (this.players.size < 4) return { error: 'Need at least 4 players to start' };
+    if (this.players.size < 3) return { error: 'Need at least 3 players to start' };
     if (!this.allProfilesReady()) return { error: 'Not all players have submitted their profile' };
+    if (this.usingCustomQuestions && this.players.size < 5) {
+      return { error: 'Custom questions require at least 5 players so there are enough answer options' };
+    }
 
     this.state = 'playing';
 
     const pool = [];
     for (const [id] of this.players) {
-      for (let qi = 0; qi < QUESTIONS.length; qi++) {
+      for (let qi = 0; qi < this.questions.length; qi++) {
         pool.push({ subjectId: id, questionIndex: qi });
       }
     }
-    this.roundPool = shuffle(pool).slice(0, TOTAL_ROUNDS);
+
+    const shuffled = shuffle(pool).slice(0, this.totalRounds);
+    this.roundPool = shuffled.map((item, idx) => ({
+      ...item,
+      roundType: idx % 2 === 0 ? 'answer-guess' : 'player-guess'
+    }));
+
     this.currentRoundIndex = 0;
     return { ok: true };
   }
 
   buildCurrentQuestion() {
-    const { subjectId, questionIndex } = this.roundPool[this.currentRoundIndex];
+    const { subjectId, questionIndex, roundType } = this.roundPool[this.currentRoundIndex];
     const subject = this.players.get(subjectId);
-    const question = QUESTIONS[questionIndex];
+    const question = this.questions[questionIndex];
     const correctAnswer = subject.answers[`q${questionIndex}`].trim();
 
+    if (roundType === 'player-guess') {
+      const otherPlayers = [...this.players.entries()]
+        .filter(([id]) => id !== subjectId)
+        .map(([id, p]) => ({ id, text: p.name }));
+
+      const decoys = shuffle(otherPlayers).slice(0, 3);
+      const correctOption = { id: subjectId, text: subject.name };
+      const options = shuffle([correctOption, ...decoys]);
+
+      this.currentRound = {
+        subjectId,
+        subjectName: subject.name,
+        questionIndex,
+        question,
+        correctAnswer,
+        correctOptionId: subjectId,
+        options,
+        questionSentAt: Date.now(),
+        guesses: new Map(),
+        roundType: 'player-guess'
+      };
+
+      return {
+        question,
+        subjectName: subject.name,
+        subjectId,
+        correctAnswer,
+        options: options.map(o => ({ id: o.id, text: o.text })),
+        roundNum: this.currentRoundIndex + 1,
+        totalRounds: this.roundPool.length,
+        totalPlayers: this.players.size,
+        roundType: 'player-guess'
+      };
+    }
+
+    // answer-guess: pick which answer belongs to the subject
     const distractors = [];
     for (const [id, player] of this.players) {
       if (id !== subjectId && player.answers) {
@@ -102,11 +177,18 @@ class GameRoom {
       }
     }
 
-    const uniqueDistractors = shuffle([...new Set(distractors)]).slice(0, 3);
+    let uniqueDistractors = shuffle([...new Set(distractors)]).slice(0, 3);
+
+    // Pad with pre-seeded defaults if not enough player distractors
+    if (uniqueDistractors.length < 3 && !this.usingCustomQuestions) {
+      const defaults = (DEFAULT_ANSWERS[questionIndex] || [])
+        .filter(d => d.toLowerCase() !== correctAnswer.toLowerCase() && !uniqueDistractors.map(x => x.toLowerCase()).includes(d.toLowerCase()));
+      const needed = 3 - uniqueDistractors.length;
+      uniqueDistractors = [...uniqueDistractors, ...shuffle(defaults).slice(0, needed)];
+    }
 
     const correctOption = { id: 'correct', text: correctAnswer };
     const wrongOptions = uniqueDistractors.map((text, i) => ({ id: `wrong_${i}`, text }));
-
     const options = shuffle([correctOption, ...wrongOptions]);
 
     this.currentRound = {
@@ -118,7 +200,8 @@ class GameRoom {
       correctOptionId: 'correct',
       options,
       questionSentAt: Date.now(),
-      guesses: new Map()
+      guesses: new Map(),
+      roundType: 'answer-guess'
     };
 
     return {
@@ -129,7 +212,8 @@ class GameRoom {
       options: options.map(o => ({ id: o.id, text: o.text })),
       roundNum: this.currentRoundIndex + 1,
       totalRounds: this.roundPool.length,
-      totalPlayers: this.players.size
+      totalPlayers: this.players.size,
+      roundType: 'answer-guess'
     };
   }
 
@@ -174,14 +258,19 @@ class GameRoom {
       }
 
       player.score += points;
-      results.push({ playerId: socketId, playerName: player.name, optionId: guess.optionId, isCorrect, points, totalScore: player.score });
+      results.push({
+        playerId: socketId,
+        playerName: player.name,
+        optionId: guess.optionId,
+        isCorrect,
+        points,
+        totalScore: player.score
+      });
     }
 
     const subjectBonus = wrongGuessCount * 25;
     const subject = this.players.get(round.subjectId);
-    if (subject) {
-      subject.score += subjectBonus;
-    }
+    if (subject) subject.score += subjectBonus;
 
     return {
       correctOptionId: round.correctOptionId,
@@ -189,6 +278,7 @@ class GameRoom {
       subjectId: round.subjectId,
       subjectName: round.subjectName,
       question: round.question,
+      roundType: round.roundType,
       subjectBonus,
       results,
       scores: this.getLeaderboard()

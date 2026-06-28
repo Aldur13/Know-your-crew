@@ -89,7 +89,7 @@ export default function HomeScreen({ error, onClearError }) {
       </div>
 
       <p style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: '0.8rem' }}>
-        Supports up to 18 players · Works on any device
+        3–18 players · Works on any device
       </p>
     </div>
   );

@@ -2,7 +2,8 @@ import socket from '../socket';
 
 export default function WaitingScreen({ roomCode, players, readyCount, isHost, gameError, onClearError }) {
   const total = players.length;
-  const allReady = readyCount === total && total >= 4;
+  const minPlayers = 3;
+  const allReady = readyCount === total && total >= minPlayers;
   const canStart = isHost && allReady;
 
   const handleStart = () => {
@@ -43,8 +44,8 @@ export default function WaitingScreen({ roomCode, players, readyCount, isHost, g
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {!allReady && (
             <p className="waiting-text">
-              {total < 4
-                ? `Need at least 4 players to start (${total} joined)`
+              {total < minPlayers
+                ? `Need at least ${minPlayers} players to start (${total} joined)`
                 : `Waiting for ${total - readyCount} more player${total - readyCount !== 1 ? 's' : ''} to fill in their profile...`}
             </p>
           )}
