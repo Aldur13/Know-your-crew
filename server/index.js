@@ -167,7 +167,9 @@ function sendNextQuestion(room, code) {
     roundNum: data.roundNum,
     totalRounds: data.totalRounds,
     totalPlayers: data.totalPlayers,
-    timeLimit: TIME_LIMIT_MS
+    timeLimit: TIME_LIMIT_MS,
+    roundType: data.roundType,
+    ...(data.roundType === 'player-guess' ? { correctAnswer: data.correctAnswer } : {})
   });
 
   const subjectSocket = io.sockets.sockets.get(data.subjectId);
