@@ -45,6 +45,7 @@ class GameRoom {
     this.state = 'lobby';
     this.hostId = hostId;
     this.players = new Map();
+    this.spectators = new Map();
     this.roundPool = [];
     this.currentRoundIndex = 0;
     this.currentRound = null;
@@ -54,6 +55,8 @@ class GameRoom {
     this.timeLimit = DEFAULT_TIME_LIMIT;
     this.usingCustomQuestions = false;
     this.roundTypes = { speedRound: false, debateRound: false };
+    this.teamMode = false;
+    this.teams = new Map();
     this._colorIndex = 0;
 
     const hostColor = PLAYER_COLORS[this._colorIndex++ % PLAYER_COLORS.length];
@@ -70,8 +73,32 @@ class GameRoom {
     });
   }
 
-  configure({ questions, totalRounds, usingCustomQuestions, timeLimit, roundTypes }) {
+  setTeamMode(enabled) {
+    if (this.state !== 'lobby') return { error: 'Cannot change team mode after game has started' };
+    this.teamMode = enabled;
+    if (enabled) {
+      this.autoAssignTeams();
+    } else {
+      this.teams.clear();
+    }
+    return { ok: true };
+  }
+
+  autoAssignTeams() {
+    this.teams.clear();
+    const playerIds = [...this.players.keys()];
+    const teamCount = Math.ceil(playerIds.length / 2);
+    playerIds.forEach((id, idx) => {
+      this.teams.set(id, idx % 2 === 0 ? 'Team A' : 'Team B');
+    });
+  }
+
+  configure({ questions, totalRounds, usingCustomQuestions, timeLimit, roundTypes, teamMode }) {
     if (this.state !== 'lobby') return { error: 'Cannot configure after game has started' };
+
+    if (typeof teamMode === 'boolean') {
+      this.setTeamMode(teamMode);
+    }
 
     if (typeof usingCustomQuestions === 'boolean') {
       this.usingCustomQuestions = usingCustomQuestions;
@@ -151,9 +178,36 @@ class GameRoom {
       color: p.color,
       avatar: p.avatar,
       profileReady: p.answers !== null,
-      isHost: id === this.hostId
+      isHost: id === this.hostId,
+      team: this.teamMode ? this.teams.get(id) : null,
+      score: p.score
     }));
-    return { players, readyCount: players.filter(p => p.profileReady).length };
+    return {
+      players,
+      readyCount: players.filter(p => p.profileReady).length,
+      teamMode: this.teamMode,
+      teamScores: this.getTeamScores()
+    };
+  }
+
+  getTeamScores() {
+    if (!this.teamMode) return null;
+    const scores = { 'Team A': 0, 'Team B': 0 };
+    for (const [id, player] of this.players) {
+      const team = this.teams.get(id);
+      if (team) scores[team] += player.score;
+    }
+    return scores;
+  }
+
+  addSpectator(socketId, name) {
+    if (this.spectators.size + this.players.size >= 30) return { error: 'Room is full' };
+    this.spectators.set(socketId, { name });
+    return { ok: true };
+  }
+
+  removeSpectator(socketId) {
+    this.spectators.delete(socketId);
   }
 
   submitProfile(socketId, answers, avatar) {

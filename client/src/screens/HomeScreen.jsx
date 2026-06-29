@@ -8,6 +8,7 @@ export default function HomeScreen({ error, onClearError }) {
   const [joinCode, setJoinCode] = useState('');
   const [mode, setMode] = useState(null); // null | 'create' | 'join'
   const [showInstructions, setShowInstructions] = useState(false);
+  const [isSpectator, setIsSpectator] = useState(false);
 
   const trimmedName = name.trim();
   const trimmedCode = joinCode.trim();
@@ -21,7 +22,7 @@ export default function HomeScreen({ error, onClearError }) {
   const handleJoin = () => {
     if (!trimmedName || !trimmedCode) return;
     onClearError();
-    socket.emit('join-room', { code: trimmedCode, name: trimmedName });
+    socket.emit('join-room', { code: trimmedCode, name: trimmedName, isSpectator });
   };
 
   return (
@@ -85,10 +86,19 @@ export default function HomeScreen({ error, onClearError }) {
                 style={{ textTransform: 'uppercase', letterSpacing: '4px', fontSize: '1.3rem', textAlign: 'center' }}
               />
             </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', padding: '8px', borderRadius: '6px' }}>
+              <input
+                type="checkbox"
+                checked={isSpectator}
+                onChange={e => setIsSpectator(e.target.checked)}
+                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+              />
+              <span style={{ fontSize: '0.9rem' }}>Watch as spectator (no answering)</span>
+            </label>
             <button className="btn btn-primary" onClick={handleJoin} disabled={!trimmedName || trimmedCode.length < 4}>
-              <span className="icon-btn-inner"><LogIn size={18} /> Join Room</span>
+              <span className="icon-btn-inner"><LogIn size={18} /> {isSpectator ? 'Spectate Game' : 'Join Room'}</span>
             </button>
-            <button className="btn btn-ghost" onClick={() => setMode(null)}>
+            <button className="btn btn-ghost" onClick={() => { setMode(null); setIsSpectator(false); }}>
               <span className="icon-btn-inner"><ArrowLeft size={16} /> Back</span>
             </button>
           </div>

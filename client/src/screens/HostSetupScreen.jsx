@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import socket from '../socket';
 import DEFAULT_QUESTIONS from '../questions';
-import { Copy, Check, Zap, MessageSquare, ArrowRight } from 'lucide-react';
+import { Copy, Check, Zap, MessageSquare, ArrowRight, Users } from 'lucide-react';
 
 const TIME_OPTIONS = [
   { label: '10s', value: 10 },
@@ -18,6 +18,7 @@ export default function HostSetupScreen({ roomCode, onDone }) {
   const [copied, setCopied] = useState(false);
   const [enableSpeedRound, setEnableSpeedRound] = useState(false);
   const [enableDebateRound, setEnableDebateRound] = useState(false);
+  const [enableTeamMode, setEnableTeamMode] = useState(false);
 
   const filledCustom = customQuestions.filter(q => q.trim()).length;
   const customValid = !useCustom || filledCustom === 10;
@@ -39,7 +40,8 @@ export default function HostSetupScreen({ roomCode, onDone }) {
       roundTypes: {
         speedRound: enableSpeedRound,
         debateRound: enableDebateRound
-      }
+      },
+      teamMode: enableTeamMode
     });
     onDone(useCustom ? customQuestions.map(q => q.trim()) : DEFAULT_QUESTIONS);
   };
@@ -192,6 +194,21 @@ export default function HostSetupScreen({ roomCode, onDone }) {
                 <div>
                   <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>Debate Rounds</div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '2px' }}>30s, see other guesses before submit</div>
+                </div>
+              </div>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={enableTeamMode}
+                onChange={(e) => setEnableTeamMode(e.target.checked)}
+                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+              />
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                <Users size={16} style={{ color: '#00d4aa', marginTop: '2px', flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>Team Mode</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '2px' }}>Players compete in teams of 2</div>
                 </div>
               </div>
             </label>

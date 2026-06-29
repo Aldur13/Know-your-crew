@@ -31,6 +31,8 @@ export default function App() {
   const [questions, setQuestions] = useState(DEFAULT_QUESTIONS);
   const [totalRounds, setTotalRounds] = useState(20);
   const [soundEnabled, setSoundEnabled] = useState(isSoundEnabled());
+  const [teamMode, setTeamMode] = useState(false);
+  const [teamScores, setTeamScores] = useState(null);
 
   useEffect(() => {
     socket.connect();
@@ -77,9 +79,11 @@ export default function App() {
       if (tr) setTotalRounds(tr);
     });
 
-    socket.on('room-update', ({ players: p, readyCount: rc }) => {
+    socket.on('room-update', ({ players: p, readyCount: rc, teamMode: tm, teamScores: ts }) => {
       setPlayers(p);
       setReadyCount(rc);
+      if (tm !== undefined) setTeamMode(tm);
+      if (ts !== undefined) setTeamScores(ts);
     });
 
     socket.on('profile-accepted', () => {
@@ -237,6 +241,8 @@ export default function App() {
         isHost={isHost}
         gameError={gameError}
         totalRounds={totalRounds}
+        teamMode={teamMode}
+        teamScores={teamScores}
         onClearError={() => setGameError(null)}
       />
     </div>

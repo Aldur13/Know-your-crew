@@ -69,19 +69,30 @@ io.on('connection', (socket) => {
     io.to(room.code).emit('room-update', room.getRoomUpdate());
   });
 
-  socket.on('join-room', ({ code, name }) => {
+  socket.on('join-room', ({ code, name, isSpectator }) => {
     if (!name || typeof name !== 'string') return;
     const trimmedName = name.trim().slice(0, 20);
     if (!trimmedName) return;
     const upperCode = (code || '').toUpperCase().trim();
     const room = rooms.get(upperCode);
     if (!room) { socket.emit('join-error', { message: 'Room not found. Check your code and try again.' }); return; }
+
+    if (isSpectator) {
+      const result = room.addSpectator(socket.id, trimmedName);
+      if (result.error) { socket.emit('join-error', { message: result.error }); return; }
+      socketToRoom.set(socket.id, upperCode);
+      socket.join(upperCode);
+      socket.emit('joined-room', { code: upperCode, isHost: false, isSpectator: true, questions: room.questions, totalRounds: room.totalRounds });
+      io.to(upperCode).emit('room-update', room.getRoomUpdate());
+      return;
+    }
+
     if (room.state !== 'lobby') { socket.emit('join-error', { message: 'This game has already started.' }); return; }
     const result = room.addPlayer(socket.id, trimmedName);
     if (result.error) { socket.emit('join-error', { message: result.error }); return; }
     socketToRoom.set(socket.id, upperCode);
     socket.join(upperCode);
-    socket.emit('joined-room', { code: upperCode, isHost: false, questions: room.questions, totalRounds: room.totalRounds });
+    socket.emit('joined-room', { code: upperCode, isHost: false, questions: room.questions, totalRounds: room.totalRounds, teamMode: room.teamMode });
     io.to(upperCode).emit('room-update', room.getRoomUpdate());
   });
 
@@ -104,12 +115,12 @@ io.on('connection', (socket) => {
     socket.emit('profile-accepted');
   });
 
-  socket.on('configure-room', ({ questions, totalRounds, usingCustomQuestions, roundTypes }) => {
+  socket.on('configure-room', ({ questions, totalRounds, usingCustomQuestions, roundTypes, teamMode }) => {
     const code = socketToRoom.get(socket.id);
     const room = rooms.get(code);
     if (!room || socket.id !== room.hostId) return;
-    room.configure({ questions, totalRounds, usingCustomQuestions, roundTypes });
-    io.to(code).emit('room-configured', { questions: room.questions, totalRounds: room.totalRounds });
+    room.configure({ questions, totalRounds, usingCustomQuestions, roundTypes, teamMode });
+    io.to(code).emit('room-configured', { questions: room.questions, totalRounds: room.totalRounds, teamMode: room.teamMode });
     io.to(code).emit('room-update', room.getRoomUpdate());
   });
 
@@ -156,9 +167,16 @@ io.on('connection', (socket) => {
     const room = rooms.get(code);
     if (!room) return;
 
+    const spectator = room.spectators.get(socket.id);
+    if (spectator) {
+      room.removeSpectator(socket.id);
+      socketToRoom.delete(socket.id);
+      io.to(code).emit('room-update', room.getRoomUpdate());
+      return;
+    }
+
     const player = room.players.get(socket.id);
     if (player) {
-      // Store old socket ID so reconnect can find this player by name
       pendingRejoin.set(socket.id, { code, name: player.name });
     }
 

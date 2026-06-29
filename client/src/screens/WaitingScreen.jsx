@@ -2,7 +2,7 @@ import { useState } from 'react';
 import socket from '../socket';
 import { Check, Users, Copy, X, ChevronDown, ChevronUp, Zap } from 'lucide-react';
 
-export default function WaitingScreen({ roomCode, players, readyCount, isHost, gameError, onClearError }) {
+export default function WaitingScreen({ roomCode, players, readyCount, isHost, gameError, onClearError, teamMode, teamScores }) {
   const [copied, setCopied] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const total = players.length;
@@ -60,10 +60,10 @@ export default function WaitingScreen({ roomCode, players, readyCount, isHost, g
 
       <div className="info-row">
         <h3 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <Users size={14} /> Players
+          <Users size={14} /> {teamMode ? 'Teams' : 'Players'}
         </h3>
         <span style={{ color: 'var(--text-dim)', fontSize: '0.85rem', fontWeight: 500 }}>
-          {readyCount}/{total} profiles ready
+          {readyCount}/{total} profiles ready {teamMode && teamScores && `• ${teamScores['Team A']}pts / ${teamScores['Team B']}pts`}
         </span>
       </div>
 
@@ -80,6 +80,7 @@ export default function WaitingScreen({ roomCode, players, readyCount, isHost, g
               {p.avatar || p.name[0].toUpperCase()}
             </div>
             <span className="player-name">{p.name}</span>
+            {teamMode && p.team && <span className="player-badge" style={{ background: p.team === 'Team A' ? 'rgba(0, 212, 170, 0.2)' : 'rgba(255, 107, 53, 0.2)', color: p.team === 'Team A' ? '#00d4aa' : '#ff6b35' }}>{p.team}</span>}
             {p.isHost && <span className="player-badge host">Host</span>}
             <span className={`player-badge ${p.profileReady ? 'ready' : ''}`}>
               {p.profileReady ? <><Check size={11} /> Ready</> : 'Filling in...'}
